@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Flask Input Processing</title>
+    <style>
+
+      body {
+        background-image: url('SIBA.jpg');
+        background-size: 100%;
+        background-position: 0% 10%
+      }
+
+      .chat-popup {
+        position: fixed;
+        bottom: 0;
+        right: 20px;
+        width: 300px;
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .chat-popup-header {
+        background-color: #007bff;
+        color: #fff;
+        padding: 10px;
+        cursor: pointer;
+      }
+
+      .chat-popup-content {
+        padding: 10px;
+        margin-bottom: 40px;
+        background-color: #f4f4f4;
+        max-height: 400px;
+        overflow-y: auto;
+        position: relative;
+        z-index: 100;
+        display: none;
+        height: 0;
+      }
+
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f4;
+        margin: 20px;
+      }
+
+      h1 {
+        color: #333;
+      }
+
+      form {
+        position: fixed;
+        bottom: 0;
+        right: 1;
+        display: none;
+        width: 95%;
+        margin-right: 25px;
+        margin-bottom: 10px;
+      }
+
+      input {
+        padding: 7px;
+        font-size: 16px;
+      }
+
+      button {
+        padding: 10px;
+        font-size: 16px;
+        background-color: #007bff;
+        color: #fff;
+        border: none;
+        margin-right: 10px;
+        border-radius: 20%;
+        cursor: pointer;
+      }
+
+      h2 {
+        color: #007bff;
+      }
+
+      ul {
+        list-style-type: none;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      li {
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .chat-messages {
+        width: 100%;
+        max-height: 280px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .user-message {
+        background-color: #fff;
+        color: #333;
+        margin-left: auto;
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        word-wrap: break-word;
+        max-width: 80%;
+      }
+
+      .ai-message {
+        background-color: #007bff;
+        color: #fff;
+        margin-right: auto;
+        margin-bottom: 10px;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        word-wrap: break-word;
+        max-width: 80%;
+      }
+      .chat-popup.active .chat-popup-content {
+        display: block;
+        height: 100%;
+      }
+
+      .chat-popup.active form {
+        display: block;
+      }
+      .chat-bubble {
+        background-color: #007bff;
+        padding: 16px 28px;
+        -webkit-border-radius: 20px;
+        -webkit-border-bottom-left-radius: 2px;
+        -moz-border-radius: 20px;
+        -moz-border-radius-bottomleft: 2px;
+        border-radius: 20px;
+        border-bottom-left-radius: 2px;
+        display: inline-block;
+        width: fit-content;
+      }
+
+      .typing {
+        align-items: center;
+        display: flex;
+        height: 17px;
+      }
+
+      .typing .dot {
+        animation: mercuryTypingAnimation 1.8s infinite ease-in-out;
+        background-color: #6cad96;
+        border-radius: 50%;
+        height: 7px;
+        margin-right: 4px;
+        vertical-align: middle;
+        width: 7px;
+        display: inline-block;
+      }
+
+      .typing .dot:nth-child(1) {
+        animation-delay: 200ms;
+      }
+
+      .typing .dot:nth-child(2) {
+        animation-delay: 300ms;
+      }
+
+      .typing .dot:nth-child(3) {
+        animation-delay: 400ms;
+      }
+
+      .typing .dot:last-child {
+        margin-right: 0;
+      }
+
+      @keyframes mercuryTypingAnimation {
+        0% {
+          transform: translateY(0px);
+          background-color: #6cad96;
+        }
+        28% {
+          transform: translateY(-7px);
+          background-color: #9ecab9;
+        }
+        44% {
+          transform: translateY(0px);
+          background-color: #b5d9cb;
+        }
+      }
+    </style>
+  </head>
+  
+  <body>
+
+    <div class="chat-popup" id="chatPopup">
+      <div class="chat-popup-header" onclick="toggleChatPopup()">
+        Chatbot Support
+      </div>
+
+      <div class="chat-popup-content" id="chatContent">
+        <div class="chat-messages"></div>
+        <form id="messageForm" onsubmit="sendMessage(event)">
+          <input type="text" id="inputText" name="input_text" />
+          <button type="submit">Send</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const container = document.querySelector(".chat-popup-content");
+      let messages=[]
+      function fetchAllMessages() {
+        fetch("http://127.0.0.1:5000/messages")
+          .then((response) => response.json())
+          .then((data) => {
+            var messagesList = document.querySelector(".chat-messages");
+            messagesList.innerHTML = "";
+            if(data.length>0){
+              messages=data
+            }
+            data.forEach((message) => {
+              var li = document.createElement("span");
+              li.className = message.user ? "user-message" : "ai-message";
+              li.textContent = message.content;
+              messagesList.appendChild(li);
+            });
+
+            container.scrollTop = container.scrollHeight;
+   
+          })
+          .catch((error) => console.error("Error fetching messages:", error));
+      }
+
+      function clearAllMessages() {
+        fetch("http://127.0.0.1:5000/clear_input")
+          .then((response) => response.json())
+          .then((data) => {
+            var messagesList = document.querySelector(".chat-messages");
+            messagesList.innerHTML = "";
+
+            // data.forEach((message) => {
+            //   var li = document.createElement("span");
+            //   li.className = message.user ? "user-message" : "ai-message";
+            //   li.textContent = message.content;
+            //   messagesList.appendChild(li);
+            // });
+
+            // container.scrollTop = container.scrollHeight;
+            return
+          })
+          .catch((error) => console.error("Error fetching messages:", error));
+      }
+
+      window.addEventListener("DOMContentLoaded", clearAllMessages);
+
+      async function toggleChatPopup() {
+        var chatPopup = document.getElementById("chatPopup");
+        chatPopup.classList.toggle("active");
+        if(chatPopup.classList.contains("active") && messages.length===0){
+        fetchAllMessages()
+  
+        }
+        container.scrollTop = container.scrollHeight;
+      }
+
+      function updateMessages(messages) {
+        var messagesList = document.querySelector(".chat-messages");
+        messagesList.innerHTML = "";
+
+        messages.forEach(function (message) {
+          var li = document.createElement("span");
+          li.className = message.user ? "user-message" : "ai-message";
+          li.textContent = message.content;
+
+          messagesList.appendChild(li);
+        });
+
+        // Automatically scroll to the bottom
+        messagesList.scrollTop = messagesList.scrollHeight;
+      }
+
+      function sendMessage(event) {
+        event.preventDefault();
+        var userInput = document.getElementById("inputText").value;
+
+        var formData = new FormData();
+        formData.append("input_text", userInput);
+
+        var userMessage = document.createElement("span");
+        userMessage.className = "user-message";
+        userMessage.textContent = userInput;
+        document.querySelector(".chat-messages").appendChild(userMessage);
+
+        // Automatically scroll to the bottom before adding the typing animation
+        var messagesList = document.querySelector(".chat-messages");
+        messagesList.scrollTop = messagesList.scrollHeight;
+
+        // Add typing animation
+        var typingBubble = document.createElement("div");
+        typingBubble.className = "chat-bubble";
+        typingBubble.innerHTML = `
+    <div class="typing">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>`;
+        document.querySelector(".chat-messages").appendChild(typingBubble);
+
+        // Automatically scroll to the bottom after adding the typing animation
+        messagesList.scrollTop = messagesList.scrollHeight;
+
+        setTimeout(() => {
+          fetch("http://127.0.0.1:5000/process_input", {
+            method: "POST",
+            body: formData,
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("Network response was not ok");
+              }
+              return response.json();
+            })
+            .then((data) => {
+              console.log(data);
+              updateMessages(data);
+            })
+            .catch((error) => {
+              console.error(
+                "There was a problem with your fetch operation:",
+                error
+              );
+            });
+        }, 1500); // Adjust the delay time as needed
+        document.getElementById("inputText").value = "";
+      }
+    </script>
+  </body>
+</html>
